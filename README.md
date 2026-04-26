@@ -60,12 +60,14 @@ components/
    - `http://192.168.x.x:3000`
    - Replace `192.168.x.x` with the PC's actual IPv4 address.
 
+
 ## Folder Hosting
 
 - Folders are user-managed and entered from the dashboard as absolute local paths.
 - The app does not auto-create folders.
 - You can register multiple folders for the same user.
 - The files view aggregates files from all available registered folders.
+- On Vercel, API routes cannot access folders on your personal PC. Folder hosting works when the app runs on the machine that owns the folders, such as with `npm run dev -- -H 0.0.0.0`.
 
 ## Notes
 
