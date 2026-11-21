@@ -1,7 +1,26 @@
 import { NextResponse } from "next/server";
-import { isDeviceRevoked, listUserDevices, listDevices, removeUserDevice, upsertDevice } from "../../../lib/db.js";
+import {
+  getUserNetworkStatus,
+  isDeviceRevoked,
+  listUserDevices,
+  listDevices,
+  removeUserDevice,
+  upsertDevice,
+} from "../../../lib/db.js";
 
 export const runtime = "nodejs";
+
+function getClientIp(request) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp.trim();
+  }
+  return "127.0.0.1";
+}
 
 function normalizeDeviceName(deviceName) {
   const trimmedDeviceName = String(deviceName || "").trim();
@@ -43,9 +62,15 @@ export async function POST(request) {
       );
     }
 
-    upsertDevice(userId, deviceName, Date.now(), deviceToken, disks);
+    const clientIp = getClientIp(request);
+    upsertDevice(userId, deviceName, Date.now(), deviceToken, disks, clientIp);
+    const networkStatus = getUserNetworkStatus(userId);
 
-    return NextResponse.json({ success: true, device_name: deviceName });
+    return NextResponse.json({
+      success: true,
+      device_name: deviceName,
+      ...networkStatus,
+    });
   } catch (error) {
     return NextResponse.json(
       {
@@ -74,7 +99,12 @@ export async function GET(request) {
         );
       }
 
-      return NextResponse.json({ devices: listUserDevices(userId, deviceToken) });
+      const devices = listUserDevices(userId, deviceToken);
+      const networkStatus = getUserNetworkStatus(userId);
+      return NextResponse.json({
+        devices,
+        ...networkStatus,
+      });
     }
 
     return NextResponse.json({ devices: listDevices() });

@@ -14,7 +14,6 @@ export async function GET(request) {
       network_url: publicUrl,
       lan_url: publicUrl,
       ip: host || "my-own-cloud.vercel.app",
-      is_cloud: true,
     });
   }
 
@@ -28,6 +27,5 @@ export async function GET(request) {
     lan_url: lanUrl,
     ip: lanIp,
     port,
-    is_cloud: false,
   });
 }

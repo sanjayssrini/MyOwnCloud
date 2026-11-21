@@ -172,8 +172,9 @@ export default function DashboardPage() {
   const [showDrivePicker, setShowDrivePicker] = useState(false);
   const [selectedDriveRoot, setSelectedDriveRoot] = useState("");
   const [savingDrive, setSavingDrive] = useState(false);
-  const [networkUrl, setNetworkUrl] = useState("");
-  const [copiedLink, setCopiedLink] = useState(false);
+  const [networkMismatch, setNetworkMismatch] = useState(false);
+  const [networkMessage, setNetworkMessage] = useState("");
+  const [activeDeviceCount, setActiveDeviceCount] = useState(0);
 
   // Modals
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
@@ -292,30 +293,48 @@ export default function DashboardPage() {
     }
   }, [activeSection, loadDevices]);
 
-  // Check available drives and prompt if multiple exist & not configured
+  // Real-time multi-device sync and auto-discovery (every 5 seconds)
   useEffect(() => {
     if (!userId) return;
 
-    fetch("/api/system/network")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.lan_url) setNetworkUrl(data.lan_url);
-      })
-      .catch(() => {});
-
-    fetch(`/api/system/drives?user_id=${userId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.devices) setSystemDevices(data.devices);
-        if (data?.drives) setSystemDrives(data.drives);
-        if (data?.storage_path) setStoragePath(data.storage_path);
-        if (data?.prompt_drive_selection && data.drives?.length > 1) {
-          setSelectedDriveRoot(data.drives[0]?.root_path || "");
-          setShowDrivePicker(true);
+    let isMounted = true;
+    const syncDevicesAndDrives = async () => {
+      try {
+        const { ok, data } = await safeFetchJson(
+          `/api/system/drives?user_id=${encodeURIComponent(userId)}&device_token=${encodeURIComponent(deviceToken)}`,
+        );
+        if (ok && isMounted && data) {
+          if (Array.isArray(data.devices)) setSystemDevices(data.devices);
+          if (Array.isArray(data.drives)) setSystemDrives(data.drives);
+          if (data.storage_path) setStoragePath(data.storage_path);
+          if (data.network_mismatch !== undefined) setNetworkMismatch(Boolean(data.network_mismatch));
+          if (data.message !== undefined) setNetworkMessage(data.message || "");
+          if (data.active_count !== undefined) setActiveDeviceCount(Number(data.active_count || 0));
+          if (data?.prompt_drive_selection && data.drives?.length > 1) {
+            setSelectedDriveRoot(data.drives[0]?.root_path || "");
+            setShowDrivePicker(true);
+          }
         }
-      })
-      .catch(() => {});
-  }, [userId]);
+      } catch {
+        // Ignored
+      }
+    };
+
+    syncDevicesAndDrives();
+    const intervalId = setInterval(syncDevicesAndDrives, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(intervalId);
+    };
+  }, [userId, deviceToken]);
+
+  // When activeSection is devices, also refresh device list periodically
+  useEffect(() => {
+    if (activeSection === "devices" && userId) {
+      const intervalId = setInterval(loadDevices, 5000);
+      return () => clearInterval(intervalId);
+    }
+  }, [activeSection, userId, loadDevices]);
 
   // Save selected disk drive
   async function handleSelectDrive() {
@@ -1189,8 +1208,8 @@ export default function DashboardPage() {
                       )}
                     </span>
                     <span className="sidebar-device-name">{dev.device_name}</span>
-                    <span className={`sidebar-device-tag ${dev.is_host ? "host" : dev.is_online ? "online" : "offline"}`}>
-                      {dev.is_host ? "Host PC" : dev.is_online ? "Online" : "Offline"}
+                    <span className={`sidebar-device-tag ${dev.is_online ? "online" : "offline"}`}>
+                      {dev.is_online ? "Online" : "Offline"}
                     </span>
                   </div>
 
@@ -1252,36 +1271,36 @@ export default function DashboardPage() {
               {stats.total_files} file{stats.total_files === 1 ? "" : "s"} &bull; {stats.total_folders} folder{stats.total_folders === 1 ? "" : "s"}
             </p>
           </div>
-
-          {/* Cloud / Wi-Fi Access Link */}
-          {networkUrl && (
-            <div className="sidebar-network-box">
-              <span className="network-box-title">
-                {networkUrl.startsWith("https://") ? "Cloud Access Link" : "Wi-Fi Access Link"}
-              </span>
-              <p className="network-box-sub">
-                {networkUrl.startsWith("https://") ? "Access from anywhere over internet:" : "Open on your phone or tablet:"}
-              </p>
-              <div className="network-url-pill">
-                <span className="network-url-text">{networkUrl}</span>
-                <button
-                  type="button"
-                  className="btn-copy-network"
-                  onClick={() => {
-                    navigator.clipboard.writeText(networkUrl);
-                    setCopiedLink(true);
-                    setTimeout(() => setCopiedLink(false), 2000);
-                  }}
-                >
-                  {copiedLink ? "Copied!" : "Copy"}
-                </button>
-              </div>
-            </div>
-          )}
         </aside>
 
         {/* MAIN DASHBOARD CONTENT */}
         <main className="drive-main-v2">
+          {/* Network Mismatch / Same Wi-Fi Notification Banner */}
+          {networkMismatch && (
+            <div className="network-alert-banner">
+              <div className="network-alert-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
+              <div className="network-alert-content">
+                <strong className="network-alert-title">Different Local Networks Detected</strong>
+                <p className="network-alert-desc">
+                  {networkMessage ||
+                    "Your logged-in devices are not connected to the same Wi-Fi network. Please connect all devices to the same local Wi-Fi to transfer files directly between them."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!networkMismatch && activeDeviceCount >= 2 && (
+            <div className="network-connected-banner">
+              <span className="network-connected-pulse" />
+              <span>{activeDeviceCount} devices connected on the same Wi-Fi network</span>
+            </div>
+          )}
           {/* SECTION 1: MANAGE DEVICES (INTEGRATED IN DASHBOARD) */}
           {activeSection === "devices" ? (
             <div className="devices-embedded-view">

@@ -10,15 +10,43 @@ const DEVICE_TOKEN_KEY = "myowncloud_device_token";
 const USER_NAME_KEY = "myowncloud_user_name";
 const EMAIL_KEY = "myowncloud_email";
 
+function detectFriendlyDeviceName() {
+  if (typeof navigator === "undefined") return "Device";
+  const ua = navigator.userAgent || "";
+  const p = navigator.userAgentData?.platform || navigator.platform || "";
+  let base = "Device";
+
+  if (/Android/i.test(ua) || /Android/i.test(p)) {
+    base = "Android Phone";
+  } else if (/iPhone/i.test(ua)) {
+    base = "iPhone";
+  } else if (/iPad/i.test(ua)) {
+    base = "iPad";
+  } else if (/Windows/i.test(ua) || /Win/i.test(p)) {
+    base = "Windows PC";
+  } else if (/Macintosh|Mac OS/i.test(ua) || /Mac/i.test(p)) {
+    base = "MacBook";
+  } else if (/Linux/i.test(ua)) {
+    base = "Linux PC";
+  }
+
+  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `${base} ${suffix}`;
+}
+
 function ensureDeviceName() {
   const existingName = window.localStorage.getItem(DEVICE_NAME_KEY);
-  if (existingName) {
+  if (
+    existingName &&
+    !existingName.startsWith("Win32") &&
+    !existingName.startsWith("Linux arm") &&
+    !existingName.startsWith("Linux aarch") &&
+    !existingName.startsWith("LAN Device")
+  ) {
     return existingName;
   }
 
-  const platform = navigator.userAgentData?.platform || navigator.platform || "LAN Device";
-  const suffix = Math.random().toString(36).slice(2, 6).toUpperCase();
-  const generatedName = `${platform} ${suffix}`.replace(/\s+/g, " ").trim();
+  const generatedName = detectFriendlyDeviceName();
   window.localStorage.setItem(DEVICE_NAME_KEY, generatedName);
   return generatedName;
 }
