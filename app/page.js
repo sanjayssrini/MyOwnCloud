@@ -167,7 +167,11 @@ export default function AuthLandingPage() {
       return;
     }
 
-    if (!pendingUserSession?.userId) {
+    const userId = pendingUserSession?.userId || (typeof window !== "undefined" ? window.localStorage.getItem(USER_ID_KEY) : null);
+    const email = pendingUserSession?.email || (typeof window !== "undefined" ? window.localStorage.getItem(EMAIL_KEY) : "");
+    const name = pendingUserSession?.name || (typeof window !== "undefined" ? window.localStorage.getItem(USER_NAME_KEY) : "");
+
+    if (!userId && !email) {
       router.replace("/");
       return;
     }
@@ -179,7 +183,9 @@ export default function AuthLandingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: pendingUserSession.userId,
+          user_id: userId ? Number(userId) : null,
+          email: email,
+          name: name,
           device_name: trimmedDeviceName,
           device_token: deviceToken,
         }),
@@ -191,6 +197,9 @@ export default function AuthLandingPage() {
       }
 
       window.localStorage.setItem(DEVICE_NAME_KEY, trimmedDeviceName);
+      if (payload.user_id) {
+        window.localStorage.setItem(USER_ID_KEY, String(payload.user_id));
+      }
       router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save device name.");

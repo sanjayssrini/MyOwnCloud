@@ -115,6 +115,7 @@ export default function Heartbeat() {
           },
           body: JSON.stringify({
             user_id: Number(userId),
+            email: window.localStorage.getItem(EMAIL_KEY) || "",
             device_name: deviceName,
             device_token: deviceToken,
             disks: [deviceDiskInfo],

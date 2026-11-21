@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  ensureUser,
+  ensureUserRow,
   getUserNetworkStatus,
   isDeviceRevoked,
   listUserDevices,
@@ -31,7 +33,9 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const action = String(body?.action || "").trim();
-    const userId = Number(body?.user_id);
+    let userId = Number(body?.user_id);
+    const email = String(body?.email || "").trim();
+    const name = String(body?.name || "").trim();
     const deviceId = Number(body?.device_id);
 
     // Support action: "remove" via POST
@@ -47,8 +51,18 @@ export async function POST(request) {
     const deviceToken = String(body?.device_token || "").trim();
     const disks = Array.isArray(body?.disks) ? body.disks : null;
 
-    if (!userId) {
-      return NextResponse.json({ error: "user_id is required." }, { status: 400 });
+    if (!userId && !email) {
+      return NextResponse.json({ error: "user_id or email is required." }, { status: 400 });
+    }
+
+    // Ensure user row exists in SQLite (crucial across ephemeral serverless containers)
+    if (email) {
+      const u = ensureUser(email, name, "", userId || null);
+      if (u) {
+        userId = u.id;
+      }
+    } else if (userId) {
+      ensureUserRow(userId, "", name);
     }
 
     // Check if device has been revoked/removed by the account owner
@@ -63,11 +77,12 @@ export async function POST(request) {
     }
 
     const clientIp = getClientIp(request);
-    upsertDevice(userId, deviceName, Date.now(), deviceToken, disks, clientIp);
+    upsertDevice(userId, deviceName, Date.now(), deviceToken, disks, clientIp, email, name);
     const networkStatus = getUserNetworkStatus(userId);
 
     return NextResponse.json({
       success: true,
+      user_id: userId,
       device_name: deviceName,
       ...networkStatus,
     });
