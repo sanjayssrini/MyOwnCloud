@@ -47,16 +47,14 @@ export async function GET(request) {
     const devices = [];
     const flatDrives = [];
 
-    // On local machine (!IS_VERCEL), include the physical host disks (C, D, E)
-    if (!IS_VERCEL) {
-      devices.push({
-        device_name: hostDeviceName,
-        is_host: true,
-        is_online: true,
-        disks: hostDisksList,
-      });
-      flatDrives.push(...hostDisksList);
-    }
+    // Always include the host disks (Local Disk C:, etc.) on all environments
+    devices.push({
+      device_name: hostDeviceName,
+      is_host: true,
+      is_online: true,
+      disks: hostDisksList,
+    });
+    flatDrives.push(...hostDisksList);
 
     // 2. Connected client devices (e.g. Android phone, other PCs)
     if (userId) {

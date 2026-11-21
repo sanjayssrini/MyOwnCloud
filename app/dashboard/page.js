@@ -234,6 +234,8 @@ export default function DashboardPage() {
       return;
     }
 
+    const cacheKey = `myowncloud_cache_${userId}_${currentPath}_${storageLocation}`;
+
     try {
       const { ok, status, data } = await safeFetchJson(
         `/api/drive?user_id=${encodeURIComponent(userId)}&parent_path=${encodeURIComponent(currentPath)}&device_token=${encodeURIComponent(deviceToken)}&storage_target=${encodeURIComponent(storageLocation)}`,
@@ -250,10 +252,54 @@ export default function DashboardPage() {
         throw new Error(data?.error || "Failed to load drive items.");
       }
 
-      setItems(data.items || []);
+      let loadedItems = data.items || [];
+      if (loadedItems.length > 0) {
+        setItems(loadedItems);
+        try {
+          window.localStorage.setItem(cacheKey, JSON.stringify(loadedItems));
+        } catch {}
+      } else {
+        // If server returns empty (e.g. fresh serverless container), restore cached items so nothing disappears
+        const cachedRaw = typeof window !== "undefined" ? window.localStorage.getItem(cacheKey) : null;
+        if (cachedRaw) {
+          try {
+            const cachedItems = JSON.parse(cachedRaw);
+            if (Array.isArray(cachedItems) && cachedItems.length > 0) {
+              setItems(cachedItems);
+              loadedItems = cachedItems;
+              // Re-sync back to server in background so the container has them
+              safeFetchJson("/api/drive", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "sync_items",
+                  user_id: Number(userId),
+                  items: cachedItems,
+                  device_token: deviceToken,
+                }),
+              });
+            } else {
+              setItems([]);
+            }
+          } catch {
+            setItems([]);
+          }
+        } else {
+          setItems([]);
+        }
+      }
+
       if (data.stats) setStats(data.stats);
       setError("");
     } catch (err) {
+      // Offline fallback: restore from cache
+      const cachedRaw = typeof window !== "undefined" ? window.localStorage.getItem(cacheKey) : null;
+      if (cachedRaw) {
+        try {
+          const cachedItems = JSON.parse(cachedRaw);
+          if (Array.isArray(cachedItems)) setItems(cachedItems);
+        } catch {}
+      }
       setError(err instanceof Error ? err.message : "Failed to load drive.");
     } finally {
       setLoading(false);
@@ -304,8 +350,28 @@ export default function DashboardPage() {
           `/api/system/drives?user_id=${encodeURIComponent(userId)}&device_token=${encodeURIComponent(deviceToken)}`,
         );
         if (ok && isMounted && data) {
-          if (Array.isArray(data.devices)) setSystemDevices(data.devices);
-          if (Array.isArray(data.drives)) setSystemDrives(data.drives);
+          if (Array.isArray(data.devices) && data.devices.length > 0) {
+            setSystemDevices(data.devices);
+            try {
+              window.localStorage.setItem(`myowncloud_cache_devices_${userId}`, JSON.stringify(data.devices));
+            } catch {}
+          } else {
+            const cachedDevs = typeof window !== "undefined" ? window.localStorage.getItem(`myowncloud_cache_devices_${userId}`) : null;
+            if (cachedDevs) {
+              try { setSystemDevices(JSON.parse(cachedDevs)); } catch {}
+            }
+          }
+          if (Array.isArray(data.drives) && data.drives.length > 0) {
+            setSystemDrives(data.drives);
+            try {
+              window.localStorage.setItem(`myowncloud_cache_drives_${userId}`, JSON.stringify(data.drives));
+            } catch {}
+          } else {
+            const cachedDrives = typeof window !== "undefined" ? window.localStorage.getItem(`myowncloud_cache_drives_${userId}`) : null;
+            if (cachedDrives) {
+              try { setSystemDrives(JSON.parse(cachedDrives)); } catch {}
+            }
+          }
           if (data.storage_path) setStoragePath(data.storage_path);
           if (data.network_mismatch !== undefined) setNetworkMismatch(Boolean(data.network_mismatch));
           if (data.message !== undefined) setNetworkMessage(data.message || "");

@@ -234,6 +234,38 @@ export async function POST(request) {
       return NextResponse.json({ success: true, folders });
     }
 
+    if (action === "sync_items") {
+      const itemsToSync = Array.isArray(body?.items) ? body.items : [];
+      const restored = [];
+      for (const item of itemsToSync) {
+        if (!item || !item.name) continue;
+        if (item.type === "folder") {
+          const f = createDriveFolder(
+            userId,
+            item.name,
+            item.parent_path || "",
+            item.device_name || "LAN Device",
+            item.device_token || "",
+            item.storage_target || "pc",
+          );
+          restored.push(f);
+        } else {
+          const f = saveDriveFile(
+            userId,
+            item.name,
+            item.parent_path || "",
+            item.size || 0,
+            item.mime_type || "",
+            item.device_name || "LAN Device",
+            item.device_token || "",
+            item.storage_target || "pc",
+          );
+          restored.push(f);
+        }
+      }
+      return NextResponse.json({ success: true, count: restored.length, items: restored });
+    }
+
     return NextResponse.json({ error: `Unknown action "${action}"` }, { status: 400 });
   } catch (error) {
     return NextResponse.json(
