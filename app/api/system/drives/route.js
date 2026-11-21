@@ -65,8 +65,12 @@ export async function GET(request) {
         if (dev.status === "removed") continue;
 
         const lowerName = (dev.device_name || "").toLowerCase();
-        // On local Windows PC, avoid duplicating the host PC
-        if (!IS_VERCEL && (lowerName.includes("windows pc") || lowerName.includes("host pc"))) {
+        // On local Windows PC, avoid duplicating the host server itself
+        const isHostMachine =
+          !IS_VERCEL &&
+          (dev.client_ip === "127.0.0.1" || dev.client_ip === "::1" || !dev.client_ip) &&
+          (lowerName === "windows pc" || lowerName === "host pc");
+        if (isHostMachine) {
           continue;
         }
 
