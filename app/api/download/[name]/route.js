@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getFolderById } from "../../../../lib/db.js";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function safeResolveFile(baseFolderPath, name) {
   const fileName = path.basename(decodeURIComponent(name));
@@ -20,6 +21,7 @@ function safeResolveFile(baseFolderPath, name) {
 
 export async function GET(request, { params }) {
   try {
+    const resolvedParams = await params;
     const { searchParams } = new URL(request.url);
     const folderId = Number(searchParams.get("folder_id"));
 
@@ -32,7 +34,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "Folder not found." }, { status: 404 });
     }
 
-    const { absolutePath, fileName } = safeResolveFile(folder.path, params.name);
+    const { absolutePath, fileName } = safeResolveFile(folder.path, resolvedParams?.name);
     const fileBuffer = await fs.readFile(absolutePath);
     const stats = await fs.stat(absolutePath);
 

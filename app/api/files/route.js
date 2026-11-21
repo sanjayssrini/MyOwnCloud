@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { listFoldersByUserId } from "../../../lib/db.js";
+import { decodeStoredFolderFileName } from "../../../lib/folder-files.js";
 
 export const runtime = "nodejs";
 
@@ -35,14 +36,16 @@ export async function GET(request) {
               .map(async (entry) => {
                 const absolutePath = path.join(folder.path, entry.name);
                 const fileStats = await fs.stat(absolutePath);
+                const displayName = decodeStoredFolderFileName(entry.name);
 
                 return {
-                  name: entry.name,
+                  name: displayName,
+                  storedName: entry.name,
                   size: fileStats.size,
                   modifiedAt: fileStats.mtime.toISOString(),
                   folderId: folder.id,
                   folderPath: folder.path,
-                  folderName: path.basename(folder.path) || folder.path,
+                  folderName: String(folder.name || "").trim() || path.basename(folder.path) || folder.path,
                   downloadUrl: `/api/download/${encodeURIComponent(entry.name)}?folder_id=${folder.id}`,
                 };
               }),
@@ -51,7 +54,7 @@ export async function GET(request) {
           folderSummaries.push({
             id: folder.id,
             path: folder.path,
-            name: path.basename(folder.path) || folder.path,
+            name: String(folder.name || "").trim() || path.basename(folder.path) || folder.path,
             device_name: folder.device_name,
             status: "ready",
           });
@@ -61,7 +64,7 @@ export async function GET(request) {
           folderSummaries.push({
             id: folder.id,
             path: folder.path,
-            name: path.basename(folder.path) || folder.path,
+            name: String(folder.name || "").trim() || path.basename(folder.path) || folder.path,
             device_name: folder.device_name,
             status: "unavailable",
           });

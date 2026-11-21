@@ -4,7 +4,9 @@ A single Next.js App Router application that acts as a local-network cloud stora
 
 ## What it does
 
-- OTP login flow using email + one-time code.
+- Firebase Authentication with Email/Password + Email Verification link.
+- Google Sign-In with automatic name extraction.
+- User registration with Full Name and custom LAN device naming.
 - Lets each user add one or many folders from the host PC.
 - Exposes files to other devices on the same WiFi over the LAN IP.
 - Tracks online/offline device status with a 5-second heartbeat.
@@ -63,14 +65,15 @@ components/
 
 ## Folder Hosting
 
-- Folders are user-managed and entered from the dashboard as absolute local paths.
-- The app does not auto-create folders.
+- Folders are added from the dashboard with the PC folder picker.
+- The app imports the selected folder contents into managed storage.
 - You can register multiple folders for the same user.
-- The files view aggregates files from all available registered folders.
+- The dashboard shows folders first; clicking one opens its files in list or tile view.
+- Folders can be removed from the dashboard at any time.
 - On Vercel, API routes cannot access folders on your personal PC. Folder hosting works when the app runs on the machine that owns the folders, such as with `npm run dev -- -H 0.0.0.0`.
 
 ## Notes
 
-- This is LAN-only MVP storage, not public cloud storage.
-- OTP is returned in API response for local MVP testing because no email provider is configured.
-- No external database or backend server is required.
+- This is LAN-first cloud storage, streaming files directly across your local network.
+- Firebase Authentication manages secure sign-in, email verification, and Google OAuth.
+- User profiles and file metadata are saved in SQLite (`better-sqlite3`).
