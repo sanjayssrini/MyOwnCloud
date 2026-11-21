@@ -1295,12 +1295,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {!networkMismatch && activeDeviceCount >= 2 && (
-            <div className="network-connected-banner">
-              <span className="network-connected-pulse" />
-              <span>{activeDeviceCount} devices connected on the same Wi-Fi network</span>
-            </div>
-          )}
+
           {/* SECTION 1: MANAGE DEVICES (INTEGRATED IN DASHBOARD) */}
           {activeSection === "devices" ? (
             <div className="devices-embedded-view">

@@ -68,8 +68,13 @@ export async function GET(request) {
         // On local Windows PC, avoid duplicating the host server itself
         const isHostMachine =
           !IS_VERCEL &&
-          (dev.client_ip === "127.0.0.1" || dev.client_ip === "::1" || !dev.client_ip) &&
-          (lowerName === "windows pc" || lowerName === "host pc");
+          (dev.client_ip === "127.0.0.1" ||
+            dev.client_ip === "::1" ||
+            !dev.client_ip ||
+            lowerName === "windows pc" ||
+            lowerName.startsWith("windows pc") ||
+            lowerName.startsWith("host pc") ||
+            lowerName === "lan device");
         if (isHostMachine) {
           continue;
         }
