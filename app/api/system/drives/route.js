@@ -65,16 +65,15 @@ export async function GET(request) {
         if (dev.status === "removed") continue;
 
         const lowerName = (dev.device_name || "").toLowerCase();
-        // On local Windows PC, avoid duplicating the host server itself
+        const isMobile = /android|iphone|ipad|phone|mobile|tablet/i.test(dev.device_name || "");
+        // Only deduplicate the Windows PC host server itself. NEVER skip phones or mobile devices!
         const isHostMachine =
           !IS_VERCEL &&
-          (dev.client_ip === "127.0.0.1" ||
-            dev.client_ip === "::1" ||
-            !dev.client_ip ||
-            lowerName === "windows pc" ||
+          !isMobile &&
+          (lowerName === "windows pc" ||
             lowerName.startsWith("windows pc") ||
-            lowerName.startsWith("host pc") ||
-            lowerName === "lan device");
+            lowerName === "host pc" ||
+            lowerName.startsWith("host pc"));
         if (isHostMachine) {
           continue;
         }
