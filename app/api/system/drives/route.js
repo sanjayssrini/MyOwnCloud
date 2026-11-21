@@ -26,20 +26,25 @@ export async function GET(request) {
       }
     }
 
-    const hostDeviceName = "Windows PC";
+    const isVercel = Boolean(process.env.VERCEL);
+    const hostDeviceName = isVercel
+      ? "Cloud Storage"
+      : process.platform === "win32"
+      ? "Windows PC"
+      : "Host Device";
 
-    // 1. Host Device (Windows PC) with its detected physical disks (C, D, E)
+    // 1. Host Device / Cloud Storage with detected physical disks
     const hostDisksList = hostDisks.map((d) => ({
-      id: d.id, // e.g. "C"
+      id: d.id, // e.g. "C" or "cloud"
       device_name: hostDeviceName,
-      disk_name: d.name, // e.g. "Local Disk (C:)"
-      name: `${hostDeviceName} - ${d.name}`,
+      disk_name: d.name, // e.g. "Local Disk (C:)" or "Cloud Storage"
+      name: isVercel ? d.name : `${hostDeviceName} - ${d.name}`,
       root_path: d.root_path,
-      free: d.free ? `${d.free} free` : "Host Disk",
+      free: d.free ? `${d.free} free` : isVercel ? "Cloud Storage" : "Host Disk",
       total: d.total,
       is_device: false,
       is_online: true,
-      storage_type: "host_disk",
+      storage_type: isVercel ? "cloud" : "host_disk",
     }));
 
     const devices = [
@@ -58,11 +63,12 @@ export async function GET(request) {
       const userDevices = listUserDevices(userId);
       for (const dev of userDevices) {
         const lowerName = (dev.device_name || "").toLowerCase();
-        // Ignore host PC from devices table so host is represented cleanly
+        // Ignore host PC or Cloud Storage from devices table so host is represented cleanly
         if (
           dev.status !== "removed" &&
           !lowerName.includes("windows pc") &&
-          !lowerName.includes("host pc")
+          !lowerName.includes("host pc") &&
+          !lowerName.includes("cloud storage")
         ) {
           // Check if device reported its own disks via OPFS
           let clientDisks = [];

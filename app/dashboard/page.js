@@ -1253,11 +1253,15 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Wi-Fi Access Link */}
+          {/* Cloud / Wi-Fi Access Link */}
           {networkUrl && (
             <div className="sidebar-network-box">
-              <span className="network-box-title">Wi-Fi Access Link</span>
-              <p className="network-box-sub">Open on your phone or tablet:</p>
+              <span className="network-box-title">
+                {networkUrl.startsWith("https://") ? "Cloud Access Link" : "Wi-Fi Access Link"}
+              </span>
+              <p className="network-box-sub">
+                {networkUrl.startsWith("https://") ? "Access from anywhere over internet:" : "Open on your phone or tablet:"}
+              </p>
               <div className="network-url-pill">
                 <span className="network-url-text">{networkUrl}</span>
                 <button
